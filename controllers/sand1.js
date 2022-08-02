@@ -47,7 +47,7 @@ factory.on("PairCreated",async (token0, token1, pairAddress)=>{
         await (new TokenPair({
             pairAddress:pairAddress.toLowerCase(),token0,token1,symbol0,symbol1,decimal0,decimal1,reserve0,reserve1
         })).save();
-        if (socket) socket.sockets.emit("sand1:pairStatus", {data:await TokenPair.find({})});
+        if (socket) socket.sockets.emit("sand1:pairStatus", {data:await TokenPair.find({}).sort({ created: 'desc' })});
     }catch(e){
         console.log('Error in pairCreated',e)
     }
@@ -58,7 +58,7 @@ exports.setSocket = (s) => {
 }
 exports.readPair = async (req, res) => {//-tested
     try {
-        const item = await TokenPair.find({});
+        const item = await TokenPair.find({}).sort({ created: 'desc' });
         return res.json({data: item})
     } catch (err) {
         console.log('[ERROR->DELBOT]', err)
@@ -71,7 +71,7 @@ exports.delPair = async (req, res) => {//-tested
     try {
         const { _id } = req.body;
         await TokenPair.findOneAndDelete({ _id: _id });
-        const item = await TokenPair.find({});
+        const item = await TokenPair.find({}).sort({ created: 'desc' });
         return res.json({
             message: 'Successfully deleted!',
             data: item,
@@ -86,7 +86,7 @@ exports.delPair = async (req, res) => {//-tested
 exports.delPairAll = async (req, res) => {//-tested
     try {
         await TokenPair.deleteMany({});
-        const item = await TokenPair.find({});
+        const item = await TokenPair.find({}).sort({ created: 'desc' });
         return res.json({
             message: 'Successfully deleted!',
             data: item,
