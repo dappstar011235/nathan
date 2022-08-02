@@ -1,6 +1,5 @@
 const jwtDecode = require('jwt-decode');
 const { createToken, hashPassword, verifyPassword } = require('../utils/authentication');
-const Wallet = require('../models/wallet');
 const User = require('../models/user');
 const ethers = require("ethers");
 exports.authenticate = async (req, res) => {
@@ -93,66 +92,3 @@ exports.validate = async (val) => {
     return false;
   }
 }
-//wallet manage
-exports.listwallet = async (req, res) => {
-  try {
-    let wallets = await Wallet.find({});
-    for(let i = 0; i < wallets.length; i++) delete wallets[i].private;
-    return res.json({
-      message:'Successfully deleted.',data:wallets,
-    })
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      message: 'Something went wrong.'
-    });
-  }
-};
-exports.addwallet = async (req, res) => {
-  try {
-    const {private,name} = req.body;
-    let walletData = await this.validate(private);
-    if(walletData===false) {
-      return res.status(403).json({
-        message: 'Privatekey is not correct!'
-      });
-    }
-    const {pu, pr} = walletData;
-    const existWallet = await Wallet.findOne({
-      private:pr
-    });
-    if(existWallet){
-      return res.status(403).json({
-        message: 'This wallet already exist!'
-      });
-    }
-    else{
-      await (new Wallet({public:pu,private:pr,name})).save();
-      let wallets = await Wallet.find({});
-      for(let i = 0; i < wallets.length; i++) delete wallets[i].private;
-      return res.json({
-        message:'Registered successfully!',data:wallets
-      })
-    }
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      message: 'Something went wrong.'
-    });
-  }
-};
-exports.delwallet = async (req, res) => {
-  try {
-    await Wallet.findByIdAndDelete(req.body._id);
-    let wallets = await Wallet.find({});
-    for(let i = 0; i < wallets.length; i++) delete wallets[i].private;
-    return res.json({
-      message:'Successfully deleted.',data:wallets
-    })
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      message: 'Something went wrong.'
-    });
-  }
-};
