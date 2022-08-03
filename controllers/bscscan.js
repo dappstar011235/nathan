@@ -26,14 +26,14 @@ const DEXS = [
         dex:'pancake',
         factory:new ethers.Contract('0xca143ce32fe78f1f7019d7d551a6402fc5350c73', abi.factory,provider),
     },
-    {
-        dex:'biswap',
-        factory:new ethers.Contract('0x858E3312ed3A876947EA49d572A7C42DE08af7EE', abi.factory,provider),
-    },
-    {
-        dex:'backeryswap',
-        factory:new ethers.Contract('0x01bF7C66c6BD861915CdaaE475042d3c4BaE16A7', abi.factory,provider),
-    },
+    // {
+    //     dex:'biswap',
+    //     factory:new ethers.Contract('0x858E3312ed3A876947EA49d572A7C42DE08af7EE', abi.factory,provider),
+    // },
+    // {
+    //     dex:'backeryswap',
+    //     factory:new ethers.Contract('0x01bF7C66c6BD861915CdaaE475042d3c4BaE16A7', abi.factory,provider),
+    // },
 ];
 let socket;
 
@@ -45,12 +45,13 @@ for(let i = 0; i < DEXS.length; i++){
             const token1 = (await pairContract.methods.token1().call()).toLowerCase();
             const symbol0 = await new web3.eth.Contract(abi.token, token0).methods.symbol().call();
             const symbol1 = await new web3.eth.Contract(abi.token, token1).methods.symbol().call();
-            // const decimal0 = await new web3.eth.Contract(abi.token, token0).methods.decimals().call();
-            // const decimal1 = await new web3.eth.Contract(abi.token, token1).methods.decimals().call();
-            // const reserves = await pairContract.methods.getReserves().call();
-            // const reserve0 = Number(reserves['_reserve0']);
-            // const reserve1 = Number(reserves['_reserve1']);
+            const decimal0 = await new web3.eth.Contract(abi.token, token0).methods.decimals().call();
+            const decimal1 = await new web3.eth.Contract(abi.token, token1).methods.decimals().call();
+            const reserves = await pairContract.methods.getReserves().call();
+            const reserve0 = Number(reserves['_reserve0']);
+            const reserve1 = Number(reserves['_reserve1']);
             let verified = false;
+            let enableTrading = reserve0>0 && reserve1>0? true: false;
             //check contract verifiy
             if(await getContractInfo(token0) == true && await getContractInfo(token1) == true) verified = true;
             //save in DB
@@ -60,12 +61,13 @@ for(let i = 0; i < DEXS.length; i++){
                 token1,
                 symbol0,
                 symbol1,
-                // decimal0,
-                // decimal1,
-                // reserve0,
-                // reserve1,
+                decimal0,
+                decimal1,
+                reserve0,
+                reserve1,
                 verified,
-                dex:DEXS[i].dex
+                dex:DEXS[i].dex,
+                enableTrading,
             })).save();
             if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await TokenPair.find({}).sort({ created: 'desc' }).limit(500)});
         }catch(e){

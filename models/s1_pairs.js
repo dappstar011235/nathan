@@ -8,6 +8,7 @@ const front_bsc_pairs = new Schema({
   symbol0: { type: String},
   symbol1: { type: String},
   verified: { type: Boolean, default: false},
+  enableTrading: { type: Boolean, default: false},
   dex: { type: String, defalut:'pancake'},
   created: { type: Date, default: Date.now },
 });
