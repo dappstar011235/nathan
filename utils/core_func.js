@@ -22,10 +22,10 @@ function timeDeltaToDate1(delta) {
     const hour = Math.floor((delta % (24 * 60 * 60 * 1000)) / 60 / 60 / 1000);
     const minute = Math.floor((delta % (60 * 60 * 1000)) / 60 / 1000);
     const seconds = Math.floor(delta % (60 * 1000)/1000);
-    if (day > 0) return day + 'days ';
-    if (hour > 0) return hour + 'h ';
-    if (minute > 0) return minute + 'min ';
-    if (seconds >= 0) return seconds + 's ';
+    if (day > 0) return day + 'd';
+    if (hour > 0) return hour + 'h';
+    if (minute > 0) return minute + 'm';
+    if (seconds >= 0) return seconds + 's';
     return str;
 }
 function strftime(ss,format) {
