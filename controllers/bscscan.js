@@ -69,7 +69,7 @@ for(let i = 0; i < DEXS.length; i++){
                 dex:DEXS[i].dex,
                 enableTrading,
             })).save();
-            if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await TokenPair.find({}).sort({ created: 'desc' }).limit(500)});
+            if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await getPairDB()});
         }catch(e){
             console.log('Error in pairCreated',e)
         }
@@ -101,13 +101,24 @@ let getContractInfo = async (addr) => {
         return false
     }
 }
+const getPairDB = async () => {
+    try{
+        const item = JSON.parse(JSON.stringify(await TokenPair.find({}).sort({ created: 'desc' }).limit(500)));
+        for(let i = 0; i < item.length; i++){
+            item[i].created = core_func.strftime(item[i].created);
+        }
+        return item;
+    }catch(e){
+        return []
+    }
+}
 //socket
 exports.setSocket = (s) => {
     socket = s
 }
 exports.readPair = async (req, res) => {//-tested
     try {
-        const item = await TokenPair.find({}).sort({ created: 'desc' }).limit(500);
+        const item = await getPairDB();
         return res.json({data: item})
     } catch (err) {
         console.log('[ERROR->DELBOT]', err)
@@ -120,7 +131,7 @@ exports.delPair = async (req, res) => {//-tested
     try {
         const { _id } = req.body;
         await TokenPair.findOneAndDelete({ _id: _id });
-        const item = await TokenPair.find({}).sort({ created: 'desc' }).limit(500);
+        const item = await getPairDB();
         return res.json({
             message: 'Successfully deleted!',
             data: item,
@@ -135,7 +146,7 @@ exports.delPair = async (req, res) => {//-tested
 exports.delPairAll = async (req, res) => {//-tested
     try {
         await TokenPair.deleteMany({});
-        const item = await TokenPair.find({}).sort({ created: 'desc' }).limit(500);
+        const item = await getPairDB();
         return res.json({
             message: 'Successfully deleted!',
             data: item,
