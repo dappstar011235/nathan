@@ -105,7 +105,7 @@ const getPairDB = async () => {
     try{
         const item = JSON.parse(JSON.stringify(await TokenPair.find({}).sort({ created: 'desc' }).limit(500)));
         for(let i = 0; i < item.length; i++){
-            item[i].life = core_func.timeDeltaToDate(new Date().getTime() - new Date(item[i].created).getTime());
+            item[i].life = core_func.timeDeltaToDate1(new Date().getTime() - new Date(item[i].created).getTime());
         }
         return item;
     }catch(e){
