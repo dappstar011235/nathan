@@ -73,6 +73,7 @@ function sleep(ms) {
 module.exports = {
     formatBytes,
     timeDeltaToDate,
+    timeDeltaToDate1,
     strftime,
     utcToChina,
     diffTwoDate,
