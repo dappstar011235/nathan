@@ -2,15 +2,15 @@ const router = require('express').Router();
 const path = require('path');
 const requireAuth = require('./middlewares/requireAuth');
 const restController = require('./controllers/restController');
-const sand1 = require('./controllers/sand1');
+const bscscan = require('./controllers/bscscan');
 
 router.post('/authenticate', restController.authenticate);
 router.post('/register', restController.register);
-router.post('/change-password', requireAuth, restController.changePassword);
+router.post('/change-password',  restController.changePassword);
 //Binanance frontrun
-router.post('/sand1/readPair', [requireAuth], sand1.readPair);
-router.post('/sand1/delPair', [requireAuth], sand1.delPair);
-router.post('/sand1/delPairAll', [requireAuth], sand1.delPairAll);
+router.post('/bscscan/readPair', bscscan.readPair);
+router.post('/bscscan/delPair', bscscan.delPair);
+router.post('/bscscan/delPairAll', bscscan.delPairAll);
 module.exports = (app, io) => {
   app.use('/api', router);
   app.get('*', function (req, res) {
@@ -30,9 +30,8 @@ module.exports = (app, io) => {
   });
 
   const onConnection = (socket) => {
-    sand1.setSocket(io);
+    bscscan.setSocket(io);
   };
-
   //socket middleware
   io.use(async (socket, next) => {next();});
   io.on('connection', onConnection);

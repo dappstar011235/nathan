@@ -2,15 +2,13 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const front_bsc_pairs = new Schema({
-  pairAddress: { type: String, require:true},
-  token0: { type: String, require:true},
-  token1: { type: String, require:true},
-  symbol0: { type: String, require:true},
-  symbol1: { type: String, require:true},
-  decimal0: { type: Number, require:true},
-  decimal1: { type: Number, require:true},
-  reserve0: { type: Number, require:true},
-  reserve1: { type: Number, require:true},
+  pairAddress: { type: String},
+  token0: { type: String},
+  token1: { type: String},
+  symbol0: { type: String},
+  symbol1: { type: String},
+  verified: { type: Boolean, default: false},
+  dex: { type: String, defalut:'pancake'},
   created: { type: Date, default: Date.now },
 });
 
