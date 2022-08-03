@@ -1,9 +1,9 @@
 //bot mode
-const TokenPair = require("../models/bsc_pairs");
-const apiScanURL = "https://api.bscscan.com/";
-const scanKey = '4UTIERIGCXW3UVIXD2EWS7349P3TJW5VM1';
+const TokenPair = require("../models/eth_pairs");
+const apiScanURL = "https://api.etherscan.com/";
+const scanKey = 'KQ3MEFVCCAG7RTC6JJ56ZHU6K1JTDQ41BN';
 const url = {
-    http: process.env.BSC_HTTP,
+    http: process.env.ETH_HTTP,
 }
 const abi = {
     factory: require('./abi/pancake/factory.json'),
@@ -23,8 +23,8 @@ const provider = httpprovider;
 const web3 = new Web3(new Web3.providers.HttpProvider(url.http));
 const DEXS = [
     {
-        dex:'pancake',
-        factory:new ethers.Contract('0xca143ce32fe78f1f7019d7d551a6402fc5350c73', abi.factory,provider),
+        dex:'uniswap',
+        factory:new ethers.Contract('0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f', abi.factory,provider),
     },
     // {
     //     dex:'biswap',
@@ -69,7 +69,7 @@ for(let i = 0; i < DEXS.length; i++){
                 dex:DEXS[i].dex,
                 enableTrading,
             })).save();
-            if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await getPairDB()});
+            if (socket) socket.sockets.emit("ethscan:pairStatus", {data:await getPairDB()});
         }catch(e){
             console.log('Error in pairCreated',e)
         }
@@ -105,7 +105,7 @@ const getPairDB = async () => {
     try{
         const item = JSON.parse(JSON.stringify(await TokenPair.find({}).sort({ created: 'desc' }).limit(500)));
         for(let i = 0; i < item.length; i++){
-            item[i].life = core_func.timeDeltaToDate(new Date().getTime() - new Date(item[i].created).getTime());
+            item[i].created = core_func.strftime(item[i].created);
         }
         return item;
     }catch(e){

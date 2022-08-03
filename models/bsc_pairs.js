@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const front_bsc_pairs = new Schema({
+const bsc_pairs = new Schema({
   pairAddress: { type: String},
   token0: { type: String},
   token1: { type: String},
@@ -13,10 +13,10 @@ const front_bsc_pairs = new Schema({
   created: { type: Date, default: Date.now },
 });
 
-front_bsc_pairs.set('toJSON', { getters: true });
-front_bsc_pairs.options.toJSON.transform = (doc, ret) => {
+bsc_pairs.set('toJSON', { getters: true });
+bsc_pairs.options.toJSON.transform = (doc, ret) => {
   const obj = { ...ret };
   delete obj.__v;
   return obj;
 };
-module.exports = mongoose.model('front_bsc_pairs', front_bsc_pairs);
+module.exports = mongoose.model('bsc_pairs', bsc_pairs);

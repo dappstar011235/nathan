@@ -3,14 +3,19 @@ const path = require('path');
 const requireAuth = require('./middlewares/requireAuth');
 const restController = require('./controllers/restController');
 const bscscan = require('./controllers/bscscan');
+const ethscan = require('./controllers/ethscan');
 
 router.post('/authenticate', restController.authenticate);
 router.post('/register', restController.register);
 router.post('/change-password',  restController.changePassword);
-//Binanance frontrun
+
 router.post('/bscscan/readPair', bscscan.readPair);
 router.post('/bscscan/delPair', bscscan.delPair);
 router.post('/bscscan/delPairAll', bscscan.delPairAll);
+
+router.post('/ethscan/readPair', ethscan.readPair);
+router.post('/ethscan/delPair', ethscan.delPair);
+router.post('/ethscan/delPairAll', ethscan.delPairAll);
 module.exports = (app, io) => {
   app.use('/api', router);
   app.get('*', function (req, res) {
@@ -31,6 +36,7 @@ module.exports = (app, io) => {
 
   const onConnection = (socket) => {
     bscscan.setSocket(io);
+    ethscan.setSocket(io);
   };
   //socket middleware
   io.use(async (socket, next) => {next();});
