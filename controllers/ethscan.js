@@ -46,6 +46,7 @@ const BASECOIN = {
 let socket;
 for(let i = 0; i < DEXS.length; i++){
     DEXS[i].factory.on("PairCreated",async (token0, token1, pairAddress)=>{
+        console.log('paricreated')
         try{
             const pairContract = new web3.eth.Contract(abi.pair, pairAddress);
             const token0 =(await pairContract.methods.token0().call()).toLowerCase();
