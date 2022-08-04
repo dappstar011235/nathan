@@ -35,8 +35,15 @@ const DEXS = [
     //     factory:new ethers.Contract('0x01bF7C66c6BD861915CdaaE475042d3c4BaE16A7', abi.factory,provider),
     // },
 ];
+const BASECOIN = {
+    WRAPCOIN: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'.toLowerCase(),
+    WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'.toLowerCase(),
+    DAI: '0x6b175474e89094c44da98b954eedeac495271d0f'.toLowerCase(),
+    SAI: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359'.toLowerCase(),
+    USDC: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'.toLowerCase(),
+    USDT: '0xdac17f958d2ee523a2206206994597c13d831ec7'.toLowerCase(),
+};
 let socket;
-
 for(let i = 0; i < DEXS.length; i++){
     DEXS[i].factory.on("PairCreated",async (token0, token1, pairAddress)=>{
         try{
@@ -47,35 +54,46 @@ for(let i = 0; i < DEXS.length; i++){
             const symbol1 = await new web3.eth.Contract(abi.token, token1).methods.symbol().call();
             const decimal0 = await new web3.eth.Contract(abi.token, token0).methods.decimals().call();
             const decimal1 = await new web3.eth.Contract(abi.token, token1).methods.decimals().call();
+            const name0 = await new web3.eth.Contract(abi.token, token0).methods.name().call();
+            const name1 = await new web3.eth.Contract(abi.token, token1).methods.name().call();
             const reserves = await pairContract.methods.getReserves().call();
             const reserve0 = Number(reserves['_reserve0']);
             const reserve1 = Number(reserves['_reserve1']);
             let verified = false;
             let enableTrading = reserve0>0 && reserve1>0? true: false;
+            const order = checkBaseCoin(token1)? false: true;
             //check contract verifiy
             if(await getContractInfo(token0) == true && await getContractInfo(token1) == true) verified = true;
             //save in DB
             await (new TokenPair({
                 pairAddress:pairAddress.toLowerCase(),
-                token0,
-                token1,
-                symbol0,
-                symbol1,
-                decimal0,
-                decimal1,
-                reserve0,
-                reserve1,
+                token0:order?token0:token1,
+                token1:!order?token0:token1,
+                symbol0:order?symbol0:symbol1,
+                symbol1:!order?symbol0:symbol1,
+                name0:order?name0:name1,
+                name1:!order?name0:name1,
+                decimal0:order?decimal0:decimal1,
+                decimal1:!order?decimal0:decimal1,
+                reserve0:order?reserve0:reserve1,
+                reserve1:!order?reserve0:reserve1,
                 verified,
                 dex:DEXS[i].dex,
                 enableTrading,
             })).save();
-            if (socket) socket.sockets.emit("ethscan:pairStatus", {data:await getPairDB()});
+            if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await getPairDB()});
         }catch(e){
             console.log('Error in pairCreated',e)
         }
     });
 }
-
+let checkBaseCoin = (addr) =>{
+    const obkeys = Object.keys(BASECOIN);
+    for(let i = 0; i < obkeys.length; i++){
+        if(String(addr).toLowerCase()==BASECOIN[obkeys[i]]) return true;
+    }
+    return false;
+}
 //____________functions___________________
 let getContractInfo = async (addr) => {
     try {

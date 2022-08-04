@@ -7,6 +7,8 @@ const eth_pairs = new Schema({
   token1: { type: String},
   symbol0: { type: String},
   symbol1: { type: String},
+  name0: { type: String},
+  name1: { type: String},
   verified: { type: Boolean, default: false},
   enableTrading: { type: Boolean, default: false},
   dex: { type: String, defalut:'pancake'},
