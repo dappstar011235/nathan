@@ -149,7 +149,6 @@ exports.delPairAll = async (req, res) => {//-tested
 };
 
 setTimeout(async()=>{
-    await TokenPair.deleteMany({});
     // {
     //     address: '0x5d43b66da68706d39f6c97f7f1415615672b446b',
     //     decimals: '18',
