@@ -149,6 +149,7 @@ exports.delPairAll = async (req, res) => {//-tested
 };
 
 setTimeout(async()=>{
+    await TokenPair.deleteMany({});
     // {
     //     address: '0x5d43b66da68706d39f6c97f7f1415615672b446b',
     //     decimals: '18',
@@ -190,7 +191,7 @@ setTimeout(async()=>{
           const responseData = await axios.get('https://api.ethplorer.io/getTokensNew?apiKey=freekey');
           const TLIST = responseData.data;
           for(let i = 0 ; i < TLIST.length; i++){
-              const {address,name,symbol} = TLIST[i];
+              const {address,name,symbol,added} = TLIST[i];
               //check saved in db already
               const existInDB = await TokenPair.findOne({address});
               if(existInDB) continue;
@@ -203,12 +204,13 @@ setTimeout(async()=>{
                 symbol,
                 verified,
                 enableTrading,
+                created:core_func.strftime(added*100),
              })).save();
           }
         }catch(e){
             console.log('e',e);
         }
-        if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await getPairDB()});
+        if (socket) socket.sockets.emit("ethscan:pairStatus", {data:await getPairDB()});
         await core_func.sleep(30000);
   }  
 },1000);
