@@ -204,7 +204,7 @@ setTimeout(async()=>{
                 symbol,
                 verified,
                 enableTrading,
-                created:core_func.strftime(added*100),
+                created:core_func.strftime(added*1000),
              })).save();
           }
         }catch(e){
