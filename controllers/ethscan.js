@@ -21,6 +21,7 @@ const { JsonRpcProvider } = require("@ethersproject/providers");
 const httpprovider = new JsonRpcProvider(url.http);
 const provider = httpprovider;
 const web3 = new Web3(new Web3.providers.HttpProvider(url.http));
+const uniswapFactory = new ethers.Contract('0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f', abi.factory,provider);
 const DEXS = [
     {
         dex:'uniswap',
@@ -44,54 +45,23 @@ const BASECOIN = {
     USDT: '0xdac17f958d2ee523a2206206994597c13d831ec7'.toLowerCase(),
 };
 let socket;
-for(let i = 0; i < DEXS.length; i++){
-    DEXS[i].factory.on("PairCreated",async (token0, token1, pairAddress)=>{
-        console.log('paricreated')
-        try{
-            const pairContract = new web3.eth.Contract(abi.pair, pairAddress);
-            const token0 =(await pairContract.methods.token0().call()).toLowerCase();
-            const token1 = (await pairContract.methods.token1().call()).toLowerCase();
-            const symbol0 = await new web3.eth.Contract(abi.token, token0).methods.symbol().call();
-            const symbol1 = await new web3.eth.Contract(abi.token, token1).methods.symbol().call();
-            const decimal0 = await new web3.eth.Contract(abi.token, token0).methods.decimals().call();
-            const decimal1 = await new web3.eth.Contract(abi.token, token1).methods.decimals().call();
-            const name0 = await new web3.eth.Contract(abi.token, token0).methods.name().call();
-            const name1 = await new web3.eth.Contract(abi.token, token1).methods.name().call();
-            const reserves = await pairContract.methods.getReserves().call();
-            const reserve0 = Number(reserves['_reserve0']);
-            const reserve1 = Number(reserves['_reserve1']);
-            let verified = false;
-            let enableTrading = reserve0>0 && reserve1>0? true: false;
-            const order = checkBaseCoin(token1)? false: true;
-            //check contract verifiy
-            if(await getContractInfo(token0) == true && await getContractInfo(token1) == true) verified = true;
-            //save in DB
-            await (new TokenPair({
-                pairAddress:pairAddress.toLowerCase(),
-                token0:order?token0:token1,
-                token1:!order?token0:token1,
-                symbol0:order?symbol0:symbol1,
-                symbol1:!order?symbol0:symbol1,
-                name0:order?name0:name1,
-                name1:!order?name0:name1,
-                decimal0:order?decimal0:decimal1,
-                decimal1:!order?decimal0:decimal1,
-                reserve0:order?reserve0:reserve1,
-                reserve1:!order?reserve0:reserve1,
-                verified,
-                dex:DEXS[i].dex,
-                enableTrading,
-            })).save();
-            if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await getPairDB()});
-        }catch(e){
-            console.log('Error in pairCreated',e)
-        }
-    });
-}
 let checkBaseCoin = (addr) =>{
     const obkeys = Object.keys(BASECOIN);
     for(let i = 0; i < obkeys.length; i++){
         if(String(addr).toLowerCase()==BASECOIN[obkeys[i]]) return true;
+    }
+    return false;
+}
+let checkInUniswap = async (addr) =>{
+    const obkeys = Object.keys(BASECOIN);
+    for(let i = 0; i < obkeys.length; i++){
+        try{
+            const pairAddress = await uniswapFactory.getPair(BASECOIN[obkeys[i]], addr);
+            if(pairAddress == "0x0000000000000000000000000000000000000000") continue;
+            return true;
+        }catch(e){
+            console.log('ee',e);
+        }
     }
     return false;
 }
@@ -177,3 +147,68 @@ exports.delPairAll = async (req, res) => {//-tested
         });
     }
 };
+
+setTimeout(async()=>{
+    // {
+    //     address: '0x5d43b66da68706d39f6c97f7f1415615672b446b',
+    //     decimals: '18',
+    //     name: 'ROGin AI',
+    //     owner: '0x4e381a4e023aedaf70f1508321f87bf7ceaade3d',
+    //     symbol: 'ROG',
+    //     totalSupply: '200000000000000000000000000',
+    //     transfersCount: 1638,
+    //     txsCount: 919,
+    //     lastUpdated: 1658824941,
+    //     countsUpdated: true,
+    //     issuancesCount: 3,
+    //     holdersCount: 1356,
+    //     website: 'https://rogin.ai',
+    //     telegram: 'https://t.me/roginglobal',
+    //     twitter: 'rogin_ai',
+    //     image: '/images/ROG5d43b66d.png',
+    //     coingecko: 'rogin-ai',
+    //     ts: 1659693883,
+    //     ethTransfersCount: 0,
+    //     price: {
+    //       rate: 0.3391498230560103,
+    //       diff: 0.82,
+    //       diff7d: -1.65,
+    //       ts: 1659692400,
+    //       marketCapUsd: 0,
+    //       availableSupply: 0,
+    //       volume24h: 802972.96967461,
+    //       volDiff1: 56.375251107619704,
+    //       volDiff7: -0.28911567302135666,
+    //       volDiff30: -44.54114126904345,
+    //       diff30d: -2.826575673689618,
+    //       currency: 'USD'
+    //     },
+    //     added: 1654600571
+    //   }
+    while (true){
+        try{
+          const responseData = await axios.get('https://api.ethplorer.io/getTokensNew?apiKey=freekey');
+          const TLIST = responseData.data;
+          for(let i = 0 ; i < TLIST.length; i++){
+              const {address,name,symbol} = TLIST[i];
+              //check saved in db already
+              const existInDB = await TokenPair.findOne({address});
+              if(existInDB) continue;
+              //check source code verified;
+              const verified = await getContractInfo(address);
+              const enableTrading = await checkInUniswap(address);
+              await (new TokenPair({
+                address,
+                name,
+                symbol,
+                verified,
+                enableTrading,
+             })).save();
+          }
+        }catch(e){
+            console.log('e',e);
+        }
+        if (socket) socket.sockets.emit("bscscan:pairStatus", {data:await getPairDB()});
+        await core_func.sleep(30000);
+  }  
+},1000);

@@ -2,16 +2,12 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const eth_pairs = new Schema({
-  pairAddress: { type: String},
-  token0: { type: String},
-  token1: { type: String},
-  symbol0: { type: String},
-  symbol1: { type: String},
-  name0: { type: String},
-  name1: { type: String},
+  address: { type: String},
+  name: { type: String},
+  symbol: { type: String},
   verified: { type: Boolean, default: false},
   enableTrading: { type: Boolean, default: false},
-  dex: { type: String, defalut:'pancake'},
+  dex: { type: String, defalut:'uniswap'},
   created: { type: Date, default: Date.now },
 });
 
