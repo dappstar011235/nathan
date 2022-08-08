@@ -61,7 +61,10 @@ for(let i = 0; i < DEXS.length; i++){
             const reserve1 = Number(reserves['_reserve1']);
             let verified = false;
             let enableTrading = reserve0>0 && reserve1>0? true: false;
+
             const order = checkBaseCoin(token1)? false: true;
+            const existInDB = await TokenPair.findOne(order?{token1:token1}:{token1:token0});
+            if(existInDB) return;
             //check contract verifiy
             if(await getContractInfo(token0) == true && await getContractInfo(token1) == true) verified = true;
             //save in DB
