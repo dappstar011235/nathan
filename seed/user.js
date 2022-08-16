@@ -10,7 +10,7 @@ connect(config.db.prod);
 (async ()=>{
   try{
     await User.deleteMany({});
-    const hashedPassword = await hashPassword("123456789");
+    const hashedPassword = await hashPassword({password:"123456789"});
 
     const userData = {
       username: 'user',
