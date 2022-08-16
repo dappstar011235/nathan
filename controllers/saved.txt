@@ -1,0 +1,27 @@
+    // const abss = [{"inputs":[],"name":"_maxTxAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}];
+    // const contractInstance = new web3.eth.Contract(abss,'0xa91c01b16ecb06df7d3f503e029a466a3d6bfb29');
+    // const amountOuts = await contractInstance.methods._maxTxAmount().call();
+    // console.log(amountOuts);
+    const signer = new ethers.Wallet(provider);
+    const router = new ethers.Contract(address.router, abi.router, signer);
+    // const tx = await router.swapETHForExactTokens(
+    //     BigNumber.from("100000000").toHexString(),
+    //     [address.WRAPCOIN, '0x0c5fbc6436102e69fb8f999f308fb17e6f7c47aa'],
+    //     '0x8B7D9a9995E3BBDAEEE7B50e47b9c3732000B873',
+    //     Date.now() + 10000 * 60 * 10, //100 minutes
+    //     {
+    //         gasLimit: ethers.utils.hexlify(1000000),
+    //         gasPrice: ethers.utils.hexlify(ethers.utils.parseUnits(String(100), "gwei")),
+    //         value: ethers.utils.parseUnits(String(0.3), 'ether'),
+    //         // nonce: nonce,
+    //     }
+    // );
+    // const txHash = tx.hash;
+
+
+    // gasLimit = await contractInstance.methods.swapExactETHForTokens(
+    //     '0',
+    //     [address.WRAPCOIN, plan.token],
+    //     plan.public,
+    //     Date.now() + 1000 * 60 * 10, //10 minutes(deadline as)
+    // ).estimateGas({ from: plan.public, value:String(value)});

@@ -9,10 +9,10 @@ const connect = (url) => {
 connect(config.db.prod);
 (async ()=>{
   try{
-    const hashedPassword = await hashPassword({password:"123456789"});
+    const hashedPassword = await hashPassword("asdASD123!@#");
 
     const userData = {
-      username: 'admin',
+      username: 'user',
       password: hashedPassword
     };
     const newUser = new User(userData);

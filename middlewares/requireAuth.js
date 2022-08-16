@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const { createToken, hashPassword, verifyPassword } = require('../utils/authentication');
 
 const requireAuth = (req, res, next) => {
   const token = req.headers.authorization;
@@ -15,7 +14,6 @@ const requireAuth = (req, res, next) => {
     });
 
     req.user = decodedToken;
-    req.password = hashPassword(req.body);
     next();
     
   } catch (error) {

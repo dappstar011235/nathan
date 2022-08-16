@@ -1,8 +1,8 @@
 module.exports = {
-  port: process.env.PORT || 3000,
+  port: process.env.PORT || 7777,
   db: {
-    prod: process.env.DATABASE_URL || 'mongodb://localhost/db1',
-    test: 'mongodb://localhost/db1',
+    prod: process.env.DATABASE_URL || 'mongodb://localhost/bot',
+    test: 'mongodb://localhost/bot',
     options: {
       useNewUrlParser: true,
       useUnifiedTopology: true,

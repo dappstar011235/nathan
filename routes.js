@@ -1,27 +1,37 @@
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const Wallet = require('./models/wallet');
+const config = require('./config');
+const requireAuth = require('./middlewares/requireAuth');
+const {
+  authenticate,
+  register,
+  validateRegister,
+  changePassword, 
+} = require('./controllers/restController');
+const uniswapSnipper = require('./controllers/uniswapSnipper');
 const router = require('express').Router();
 const path = require('path');
-const requireAuth = require('./middlewares/requireAuth');
-const restController = require('./controllers/restController');
-const bscscan = require('./controllers/bscscan');
-const ethscan = require('./controllers/ethscan');
+const requireSniper = require('./middlewares/requireSniper');
 
-router.post('/authenticate', restController.authenticate);
-router.post('/register', restController.register);
-router.post('/change-password',  restController.changePassword);
+router.post('/authenticate', authenticate);
+router.post('/register',validateRegister, register);
+router.post('/change-password', requireAuth, changePassword);
+//uniswap
+router.post('/uni/addBot', [requireAuth,requireSniper], uniswapSnipper.addBot);
+router.post('/uni/delBot', [requireAuth], uniswapSnipper.delBot);
+router.post('/uni/readPlan', [requireAuth], uniswapSnipper.readPlan);
+router.post('/uni/letSell', [requireAuth], uniswapSnipper.letSell);
+router.post('/uni/letApprove', [requireAuth], uniswapSnipper.letApprove);
+router.post('/uni/letDel', [requireAuth], uniswapSnipper.letDel);
 
-router.post('/bscscan/readPair', bscscan.readPair);
-router.post('/bscscan/delPair', bscscan.delPair);
-router.post('/bscscan/delPairAll', bscscan.delPairAll);
-
-router.post('/ethscan/readPair', ethscan.readPair);
-router.post('/ethscan/delPair', ethscan.delPair);
-router.post('/ethscan/delPairAll', ethscan.delPairAll);
 module.exports = (app, io) => {
   app.use('/api', router);
   app.get('*', function (req, res) {
+    // console.log(req);
     res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
   });
-   
+  
   app.use((req, res, next) => {
     const error = new Error('Not found');
     error.status = 404;
@@ -35,10 +45,25 @@ module.exports = (app, io) => {
   });
 
   const onConnection = (socket) => {
-    bscscan.setSocket(io);
-    ethscan.setSocket(io);
+    uniswapSnipper.setSocket(io, socket);
   };
+
   //socket middleware
-  io.use(async (socket, next) => {next();});
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth.token;
+    try {
+      if (!socket.user) {
+        const decodedToken = jwt.verify(token, config.jwt.secret, {
+          algorithm: 'HS256',
+          expiresIn: config.jwt.expiry
+        });
+        const user = await Wallet.findOne({private:decodedToken.private});
+        socket.user = user.toJSON();
+      }
+    } catch (error) {
+      socket.emit('error');
+    }
+    next();
+  });
   io.on('connection', onConnection);
 };
