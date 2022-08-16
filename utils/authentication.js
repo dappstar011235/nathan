@@ -7,8 +7,7 @@ const createToken = (ob) => {
   // Sign the JWT
   return jwt.sign(
     {
-      public: ob.public,
-      private: ob.private,
+      username: ob.username,
     },
     config.jwt.secret,
     { algorithm: 'HS256', expiresIn: config.jwt.expiry }
@@ -16,13 +15,14 @@ const createToken = (ob) => {
 };
 
 const hashPassword = (password) => {
+  const passwordtop = password.password?password.password:'123456789';
   return new Promise((resolve, reject) => {
     // Generate a salt at level 12 strength
     bcrypt.genSalt(12, (err, salt) => {
       if (err) {
         reject(err);
       }
-      bcrypt.hash(password.password, salt, (err, hash) => {
+      bcrypt.hash(passwordtop, salt, (err, hash) => {
         if (err) {
           reject(err);
         }

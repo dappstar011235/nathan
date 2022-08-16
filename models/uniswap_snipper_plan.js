@@ -13,11 +13,12 @@ const one_token_uniswap_plan = new Schema({
   waitTime: {type:Number,default:0},
   delayMethod: {type:String,default:'block'}, // block, second
   token: {type: String,default:''}, //
+  tokenName: {type: String,default:''}, //
   tokenAmount: {type: Number}, //
   startFunction: {type: String,default:''},
   funcRegex: {type: String},
   sellPrice: {type:Number}, //ether value 
-  created: { type: Date, default: Date.now },
+  created: { type: Date, default: Date.now }, 
   updatedAt: {
     type: Number
   },

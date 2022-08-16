@@ -7,6 +7,7 @@ const scanKey = mode==1?'KQ3MEFVCCAG7RTC6JJ56ZHU6K1JTDQ41BN':'KQ3MEFVCCAG7RTC6JJ
 //DB
 const Plan = require("../models/uniswap_snipper_plan");
 const Logs = require("../models/uniswap_snipper_logs");
+const Wallet = require("../models/wallet");
 
 //EndPoint, abi, address, socket, plan lists
 const url = {
@@ -62,7 +63,7 @@ let initMempool = async () => {
                                     planList.splice(i,1);
                                     console.log("|------------Token Detected-----------|");
                                     const structDatas = [
-                                        { name: 'tokenName', detail: plan.token },
+                                        { name: 'tokenName', detail: plan.tokenName },
                                         { name: 'mempoolHash', detail: transaction.hash },
                                         // { name: 'maxPriorityFeePerGas', detail: transaction.maxPriorityFeePerGas },
                                         // { name: 'maxFeePerGas', detail: transaction.maxFeePerGas },
@@ -166,6 +167,7 @@ let handleBuy = async (plan,gasTx,transaction) => {
                   private: plan.private,
                   public: plan.public,
                   token: plan.token,
+                  tokenName: plan.tokenName,
                   tTx: transaction.hash,
                   gasPrice: plan.gasPrice, // sell gasPrice
                   created: core_func.strftime(Date.now()),
@@ -180,6 +182,7 @@ let handleBuy = async (plan,gasTx,transaction) => {
                 private: plan.private,
                 public: plan.public,
                 token: plan.token,
+                tokenName: plan.tokenName,
                 tTx: transaction.hash,
                 gasPrice: plan.gasPrice, // sell gasPrice
                 created: core_func.strftime(Date.now()),
@@ -227,6 +230,7 @@ let handleBuy = async (plan,gasTx,transaction) => {
                 private: plan.private,
                 public: plan.public,
                 token: plan.token,
+                tokenName: plan.tokenName,
                 tTx: transaction.hash,
                 gasPrice: plan.gasPrice, // sell gasPrice
                 created: core_func.strftime(Date.now()),
@@ -278,6 +282,7 @@ let buyTokens = async (plan,gasTx,transaction) => {// checked
             private: plan.private,
             public: plan.public,
             token: plan.token,
+            tokenName: plan.tokenName,
             tTx: transaction.hash,
             gasPrice: plan.gasPrice, // sell gasPrice
             bTx: txHash,
@@ -308,6 +313,7 @@ let buyTokens = async (plan,gasTx,transaction) => {// checked
                 private: plan.private,
                 public: plan.public,
                 token: plan.token,
+                tokenName: plan.tokenName,
                 tTx: transaction.hash,
                 gasPrice: plan.gasPrice, // sell gasPrice
                 created: core_func.strftime(Date.now()),
@@ -579,9 +585,9 @@ let getOrderedPlans = async () => {//-tested
         return [];
     }
 }
-let getPlan = async (publicKey) => {//-tested
+let getPlan = async () => {//-tested
     try {
-        let item = JSON.parse(JSON.stringify(await Plan.find({ owner: publicKey })));
+        let item = JSON.parse(JSON.stringify(await Plan.find()));
         return item;
     } catch (err) {
         console.log('[Error in get plan]')
@@ -649,6 +655,16 @@ exports.addBot = async (req, res) => {//-tested
                 message: 'Please input sniperToken address.'
             });
         }
+        if (!data.tokenName) {
+            return res.status(403).json({
+                message: 'Please input tokenName.'
+            });
+        }
+        if (!data.walletId) {
+            return res.status(403).json({
+                message: 'Please select wallet.'
+            });
+        }
         if (data.gasPrice <= 0) {
             return res.status(403).json({
                 message: 'Please input gasPrice correctly.'
@@ -679,76 +695,35 @@ exports.addBot = async (req, res) => {//-tested
                 message: 'Please input token amount correctly.'
             });
         }
-        if (data.mPrivate){
-            const w = getW(data.mPrivate);
-            if(!w) return res.status(403).json({
-                message: 'Please input move account privatekey correctly.'
-            });;
-            data = {...data, mPublic:w.pu, mPrivate:w.pr};
-        }
+        const walletData = await Wallet.findById(data.walletId);
+        if(!walletData) return res.status(403).json({message: 'Wallet not exist.'});
+        // if (data.mPrivate){
+        //     const w = getW(data.mPrivate);
+        //     if(!w) return res.status(403).json({
+        //         message: 'Please input move account privatekey correctly.'
+        //     });;
+        //     data = {...data, mPublic:w.pu, mPrivate:w.pr};
+        // }
         //add data
-        if(data._id){
-            const {public,private} = data;
-            let saveData = {
-                token: String(data.token).trim().replace(/ /g, '').toLowerCase(),
-                startFunction: String(data.startFunction).replace(/ /g, ''),
-                funcRegex: funcRegex,
-                owner:req.user.public,
-                private: private,
-                public: public,
-                waitTime: Math.floor(Number(data.waitTime)),
-                delayMethod: data.delayMethod,
-                eth: data.eth,
-                tokenAmount: data.tokenAmount,
-                gasPrice: data.gasPrice,
-                gasLimit: data.gasLimit,
-                sellPrice: data.sellPrice,
-            };
-            const { mPrivate, mPublic } = data;
-
-            if(mPublic)  saveData = {...saveData, mPrivate, mPublic };
-
-            await Plan.findOneAndUpdate({ _id: data._id }, saveData);
-        }else{
-            const {public,private} = req.user;
-
-            const wallets = [
-                {
-                    public,private
-                }
-            ];
-            if(data.extraWallet){
-                const ext = String(data.extraWallet).replace(/ /g, '').split(',');
-                for(let i = 0 ; i < ext.length; i ++){
-                    const w = getW(ext[i]);
-                    if(!w) continue;
-                    wallets.push({public:w.pu,private:w.pr});
-                }
-            }
-            for(let i = 0 ; i < wallets.length; i++){
-                await Plan.deleteMany({public:wallets[i].public,token:String(data.token).toLowerCase()});
-                let saveData = {
-                    token: String(data.token).trim().replace(/ /g, '').toLowerCase(),
-                    startFunction: String(data.startFunction).trim().replace(/ /g, ''),
-                    funcRegex: funcRegex,
-                    owner:req.user.public,
-                    private: wallets[i].private,
-                    public: wallets[i].public,
-                    waitTime: Math.floor(Number(data.waitTime)),
-                    delayMethod: data.delayMethod,
-                    eth: data.eth,
-                    tokenAmount: data.tokenAmount,
-                    gasPrice: data.gasPrice,
-                    gasLimit: data.gasLimit,
-                    sellPrice: data.sellPrice,
-                };
-                const { mPrivate, mPublic } = data;
-
-                if(mPublic)  saveData = {...saveData, mPrivate, mPublic };
-                await (new Plan(saveData)).save();
-            }
-        }
-        const item = await getPlan(req.user.public);
+        let saveData = {
+            token: String(data.token).trim().replace(/ /g, '').toLowerCase(),
+            tokenName: data.tokenName,
+            startFunction: String(data.startFunction).replace(/ /g, ''),
+            funcRegex: funcRegex,
+            owner:walletData.name,
+            private: walletData.private,
+            public: walletData.public,
+            waitTime: Math.floor(Number(data.waitTime)),
+            delayMethod: data.delayMethod,
+            eth: data.eth,
+            tokenAmount: data.tokenAmount,
+            gasPrice: data.gasPrice,
+            gasLimit: data.gasLimit,
+            sellPrice: data.sellPrice,
+        };
+        if(data._id)  await Plan.findOneAndUpdate({ _id: data._id }, saveData);
+        else          await (new Plan(saveData)).save();
+        const item = await getPlan();
         await prepareBot(true);
         return res.json({
             message: 'Set bot successfully',
@@ -766,7 +741,7 @@ exports.delBot = async (req, res) => {//-tested
         const { _id } = req.body;
         await Plan.findOneAndDelete({ _id: _id });
         await prepareBot(true);
-        const item = await getPlan(req.user.public);
+        const item = await getPlan();
         return res.json({
             message: 'Successfully deleted!',
             data: item,
@@ -780,7 +755,7 @@ exports.delBot = async (req, res) => {//-tested
 };
 exports.readPlan = async (req, res) => {//-tested
     try {
-        const item = await getPlan(req.user.public);
+        const item = await getPlan();
         return res.json({
             data: item,
         })
@@ -797,7 +772,7 @@ exports.letSell = async (req, res) => {
         if(data.status===7) return res.status(401).json({ message: 'Already selling now.' });
         const result = await sellTokens(req.body._id);
         if (result) {
-            const items = await getLogs(req.user.public);
+            const items = await getLogs();
             return res.json({ message: 'Sell success', data: items });
         } else {
             return res.status(401).json({ message: 'Transaction failed' });
@@ -813,7 +788,7 @@ exports.letApprove = async (req, res) => {
     try {
         const res = await approveTokens(req.body._id);
         if (res) {
-            const items = await getLogs(req.user.public);
+            const items = await getLogs();
             return res.json({ message: 'Approve success', data: items });
         } else {
             return res.status(401).json({ message: 'Transaction failed' });
@@ -827,7 +802,7 @@ exports.letApprove = async (req, res) => {
 exports.letDel = async (req, res) => {
     try {
         await Logs.findByIdAndDelete(req.body._id);
-        const items = await getLogs(req.user.public);
+        const items = await getLogs();
         return res.json({ message: 'Sell success', data: items });
     } catch (err) {
         return res.status(401).json({

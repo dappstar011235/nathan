@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const wallet = new Schema({
+  name: { type: String, required: true},
   private: { type: String, required: true, unique: true },
   public: { type: String, required: true },
-  password: { type: String,required:true},
   created: { type: Date, default: Date.now },
   updatedAt: {
     type: Number

@@ -9,11 +9,10 @@ const connect = (url) => {
 connect(config.db.prod);
 (async ()=>{
   try{
-    await User.deleteMany({});
     const hashedPassword = await hashPassword({password:"123456789"});
 
     const userData = {
-      public: 'user',
+      username: 'admin',
       password: hashedPassword
     };
     const newUser = new User(userData);

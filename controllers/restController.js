@@ -3,27 +3,28 @@ const jwtDecode = require('jwt-decode');
 const { body, validationResult } = require('express-validator');
 const { createToken, hashPassword, verifyPassword } = require('../utils/authentication');
 const Wallet = require('../models/wallet');
+const User = require('../models/user');
 const ethers = require("ethers");
 exports.authenticate = async (req, res) => {
   try {
-    const {public,password} = req.body;
-    const existWallet = await Wallet.findOne({
-      public:public
+    const {username,password} = req.body;
+    const exist = await User.findOne({
+      username
     });
-    if(!existWallet){
+    if(!exist){
       return res.status(403).json({
         message: 'Unknown acount!'
       });
     }
-    const passwordValid = await verifyPassword(password, existWallet.password);
+    const passwordValid = await verifyPassword(password, exist.password);
     if(passwordValid){
-      const token = createToken({public:existWallet.public,private:existWallet.private});
+      const token = createToken({username});
       const decodedToken = jwtDecode(token);
       const expiresAt = decodedToken.exp;
       return res.json({
         message: 'Authentication successful!',
         token,
-        userInfo:existWallet,
+        userInfo:exist,
         expiresAt
       });
     }else{
@@ -70,20 +71,21 @@ exports.register = async (req, res) => {
   }
 };
 exports.changePassword = async (req, res, next) => {
+  const { username } = req.user;
   const password = req.body.password;
   const newPassword = req.body.newPassword;
-  let user = await Wallet.findOne({public:req.body.publickey});
+  let user = await User.findOne({username});
   if(!user){
-    return res.status(401).json({ error: 'Public key is incorrect' });
+    return res.status(401).json({ error: 'Authentication error.' });
   }
   const passwordValid = await verifyPassword(password, user.password);
   if (passwordValid) {
     const hashedPassword = await hashPassword({password:newPassword});
-    await Wallet.findOneAndUpdate({public:req.body.publickey},{password:hashedPassword});
+    await User.findOneAndUpdate({username},{password:hashedPassword});
     return res.status(200).json({
       message: 'Password changed!'
     });
-  } else return res.status(401).json({ error: 'Password incorrect!' });
+  } else return res.status(401).json({ error: 'Password is incorrect!' });
 };
 exports.validate = async (val) => {
   try{
@@ -93,26 +95,63 @@ exports.validate = async (val) => {
     return false;
   }
 }
-exports.validateRegister = [
-  body('private')
-    .exists()
-    .trim()
-    .withMessage('is required')
-
-    .notEmpty()
-    .withMessage('cannot be blank'),
-
-  body('password')
-    .exists()
-    .trim()
-    .withMessage('is required')
-
-    .notEmpty()
-    .withMessage('cannot be blank')
-
-    .isLength({ min: 6 })
-    .withMessage('must be at least 6 characters long')
-
-    .isLength({ max: 50 })
-    .withMessage('must be at most 50 characters long')
-];
+//wallet manage
+exports.listwallet = async (req, res) => {
+  try {
+    const wallets = await Wallet.find({});
+    return res.json({
+      message:'Successfully deleted.',data:wallets,
+    })
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      message: 'Something went wrong.'
+    });
+  }
+};
+exports.addwallet = async (req, res) => {
+  try {
+    const {private,name} = req.body;
+    let walletData = await this.validate(private);
+    if(walletData===false) {
+      return res.status(403).json({
+        message: 'Privatekey is not correct!'
+      });
+    }
+    const {pu, pr} = walletData;
+    const existWallet = await Wallet.findOne({
+      private:pr
+    });
+    if(existWallet){
+      return res.status(403).json({
+        message: 'This wallet already exist!'
+      });
+    }
+    else{
+      await (new Wallet({public:pu,private:pr,name})).save();
+      const wallets = await Wallet.find({});
+      return res.json({
+        message:'Registered successfully!',data:wallets
+      })
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      message: 'Something went wrong.'
+    });
+  }
+};
+exports.delwallet = async (req, res) => {
+  try {
+    await Wallet.findByIdAndDelete(req.body._id);
+    const wallets = await Wallet.find({});
+    return res.json({
+      message:'Successfully deleted.',data:wallets
+    })
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      message: 'Something went wrong.'
+    });
+  }
+};
