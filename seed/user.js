@@ -13,7 +13,7 @@ connect(config.db.prod);
     const hashedPassword = await hashPassword({password:"123456789"});
 
     const userData = {
-      username: 'user',
+      public: 'user',
       password: hashedPassword
     };
     const newUser = new User(userData);
