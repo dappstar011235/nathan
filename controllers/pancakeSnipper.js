@@ -34,12 +34,12 @@ const core_func = require('../utils/core_func');
 const axios = require('axios');
 const ethers = require('ethers');
 const { JsonRpcProvider } = require("@ethersproject/providers");
-// const wssprovider = new ethers.providers.WebSocketProvider(url.wss);
+const wssprovider = new ethers.providers.WebSocketProvider(url.wss);
 const httpprovider = new JsonRpcProvider(url.http);
 const provider = httpprovider;
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider(url.http));
-// const web3_wss = new Web3(new Web3.providers.WebsocketProvider(url.wss));
+const web3_wss = new Web3(new Web3.providers.WebsocketProvider(url.wss));
 const uniswapAbi = new ethers.utils.Interface(abi.router);
 const swapGasLimit = ethers.utils.hexlify(Number(3000000));
 //Start Functions
