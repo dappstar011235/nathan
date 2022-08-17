@@ -558,9 +558,9 @@ function convertToHex( value ){
 //trigger start..
 setTimeout(async () => {
     console.log(`__________${title} Started______________ `);
-    // initMempool();
-    // while (true) {
-    //     autoSell();
-    //     await core_func.sleep(2000);
-    // }
+    initMempool();
+    while (true) {
+        autoSell();
+        await core_func.sleep(2000);
+    }
 }, 3000);
