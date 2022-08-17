@@ -1,10 +1,6 @@
-const jwt = require('jsonwebtoken');
-const Wallet = require('./models/wallet');
-const config = require('./config');
 const requireAuth = require('./middlewares/requireAuth');
 const restController = require('./controllers/restController');
-const uniswapSnipper = require('./controllers/uniswapSnipper');
-const copyTrading = require('./controllers/copyTrading');
+const pancakeSnipper = require('./controllers/pancakeSnipper');
 const router = require('express').Router();
 const path = require('path');
 
@@ -17,19 +13,12 @@ router.post('/wallet/add', requireAuth, restController.addwallet);
 router.post('/wallet/del', requireAuth, restController.delwallet);
 
 //uniswap
-router.post('/uni/addBot', [requireAuth], uniswapSnipper.addBot);
-router.post('/uni/delBot', [requireAuth], uniswapSnipper.delBot);
-router.post('/uni/readPlan', [requireAuth], uniswapSnipper.readPlan);
-router.post('/uni/letSell', [requireAuth], uniswapSnipper.letSell);
-router.post('/uni/letApprove', [requireAuth], uniswapSnipper.letApprove);
-router.post('/uni/letDel', [requireAuth], uniswapSnipper.letDel);
-//conpy trading
-router.post('/copy/addBot', [requireAuth], copyTrading.addBot);
-router.post('/copy/delBot', [requireAuth], copyTrading.delBot);
-router.post('/copy/readPlan', [requireAuth], copyTrading.readPlan);
-router.post('/copy/letSell', [requireAuth], copyTrading.letSell);
-router.post('/copy/letApprove', [requireAuth], copyTrading.letApprove);
-router.post('/copy/letDel', [requireAuth], copyTrading.letDel);
+router.post('/pan/addBot', [requireAuth], pancakeSnipper.addBot);
+router.post('/pan/delBot', [requireAuth], pancakeSnipper.delBot);
+router.post('/pan/readPlan', [requireAuth], pancakeSnipper.readPlan);
+router.post('/pan/letSell', [requireAuth], pancakeSnipper.letSell);
+router.post('/pan/letApprove', [requireAuth], pancakeSnipper.letApprove);
+router.post('/pan/letDel', [requireAuth], pancakeSnipper.letDel);
 module.exports = (app, io) => {
   app.use('/api', router);
   app.get('*', function (req, res) {
@@ -50,8 +39,7 @@ module.exports = (app, io) => {
   });
 
   const onConnection = (socket) => {
-    uniswapSnipper.setSocket(io, socket);
-    copyTrading.setSocket(io, socket);
+    pancakeSnipper.setSocket(io, socket);
   };
 
   //socket middleware

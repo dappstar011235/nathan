@@ -1,15 +1,15 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const one_token_uniswap_logs = new Schema({
+const pancake_logs = new Schema({
   owner: {type: String,required:true },
   private: { type: String },
   public: { type: String },
   token: { type: String },
   tokenName: { type: String },
+  baseCoin: { type: String},
   currentPrice: { type:Number },
   sellPrice: { type:Number },
-  gasPrice: { type:Number}, //gwei
   tTx: { type: String},// token hash
   bTx: { type: String},// buy hash
   aTx: { type: String},// approve hash
@@ -26,10 +26,10 @@ const one_token_uniswap_logs = new Schema({
   }
 });
 
-one_token_uniswap_logs.set('toJSON', { getters: true });
-one_token_uniswap_logs.options.toJSON.transform = (doc, ret) => {
+pancake_logs.set('toJSON', { getters: true });
+pancake_logs.options.toJSON.transform = (doc, ret) => {
   const obj = { ...ret };
   delete obj.__v;
   return obj;
 };
-module.exports = mongoose.model('one_token_uniswap_logs', one_token_uniswap_logs);
+module.exports = mongoose.model('pancake_logs', pancake_logs);

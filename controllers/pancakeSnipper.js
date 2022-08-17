@@ -1,32 +1,30 @@
 //bot mode
-const mode = 1; //0 - testmode, 1 - realmode
-const title = 'Uniswap snipper';
-const apiScanURL = "https://api.etherscan.com/";
-const scanKey = mode==1?'KQ3MEFVCCAG7RTC6JJ56ZHU6K1JTDQ41BN':'KQ3MEFVCCAG7RTC6JJ56ZHU6K1JTDQ41BN';
+const title = 'pancake snipper';
+const apiScanURL = "https://bscscan.com/";
+const scanKey = '4UTIERIGCXW3UVIXD2EWS7349P3TJW5VM1';
 
 //DB
-const Plan = require("../models/uniswap_snipper_plan");
-const Logs = require("../models/uniswap_snipper_logs");
+const Plan = require("../models/pancake_snipper_plan");
+const Logs = require("../models/pancake_snipper_logs");
 const Wallet = require("../models/wallet");
 
 //EndPoint, abi, address, socket, plan lists
 const url = {
-    wss: mode==1?process.env.ETH_WS:process.env.ETH_WS_TEST,
-    http: mode==1?process.env.ETH_HTTP:process.env.ETH_HTTP_TEST,
+    wss: process.env.BSC_WS,
+    http: process.env.BSC_HTTP,
 }
 const address = {
-    WRAPCOIN: mode==1?'0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2':'0xc778417E063141139Fce010982780140Aa0cD5Ab',
-    factory: mode==1?'0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f':'0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
-    router: mode==1?'0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D':'0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+    WRAPCOIN: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'.toLowerCase(),
+    WBNB: '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c'.toLowerCase(),
+    BUSD: '0xe9e7cea3dedca5984780bafc599bd69add087d56'.toLowerCase(),
+    factory: '0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73'.toLowerCase(),
+    router: '0x10ED43C718714eb63d5aA57B78B54704E256024E'.toLowerCase(),
 };
 const abi = {
     factory: require('./abi/abi_uniswap_v2').factory,
     router: require('./abi/abi_uniswap_v2_router_all.json'),
     token: require('./abi/abi_token.json'),
 }
-const approveGas = 125; // this is default gas in mainnet...
-const maxGas = 180; // this is default gas in mainnet...
-const minGas = 50; // this is default gas in mainnet...
 let socketT;
 let io;
 let planList = []; // array of all plans user set
@@ -35,18 +33,15 @@ let planList = []; // array of all plans user set
 const core_func = require('../utils/core_func');
 const axios = require('axios');
 const ethers = require('ethers');
-const {BigNumber}  = require('ethers');
 const { JsonRpcProvider } = require("@ethersproject/providers");
-const wssprovider = new ethers.providers.WebSocketProvider(url.wss);
+// const wssprovider = new ethers.providers.WebSocketProvider(url.wss);
 const httpprovider = new JsonRpcProvider(url.http);
 const provider = httpprovider;
-const factoryContract = new ethers.Contract(address.factory, abi.factory, wssprovider);
-const routerContract = new ethers.Contract(address.router, abi.router);
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider(url.http));
-const web3_wss = new Web3(new Web3.providers.WebsocketProvider(url.wss));
+// const web3_wss = new Web3(new Web3.providers.WebsocketProvider(url.wss));
 const uniswapAbi = new ethers.utils.Interface(abi.router);
-
+const swapGasLimit = ethers.utils.hexlify(Number(3000000));
 //Start Functions
 let initMempool = async () => {
     await prepareBot(); // set variables that bot will use....
@@ -55,43 +50,11 @@ let initMempool = async () => {
             function (transaction) {
                 try {
                     if (transaction && planList.length > 0) {
-                        const planListTemp = JSON.parse(JSON.stringify(planList));
-                        for (let i = 0; i < planListTemp.length; i++) {
-                            const plan = planListTemp[i];
-                            if (plan.token && checkTransaction(plan.token, plan.funcRegex, transaction) === true) {
-                                try {
-                                    planList.splice(i,1);
-                                    console.log("|------------Token Detected-----------|");
-                                    const structDatas = [
-                                        { name: 'tokenName', detail: plan.tokenName },
-                                        { name: 'mempoolHash', detail: transaction.hash },
-                                        // { name: 'maxPriorityFeePerGas', detail: transaction.maxPriorityFeePerGas },
-                                        // { name: 'maxFeePerGas', detail: transaction.maxFeePerGas },
-                                        // { name: 'gasPrice', detail: transaction.gasPrice },
-                                    ];
-                                    const amountIn = ethers.utils.parseUnits(String(plan.eth), 'ether');
-                                    let gasTx;
-                                    if (transaction.maxPriorityFeePerGas) {
-                                        gasTx = {
-                                            gasLimit: ethers.utils.hexlify(Number(plan.gasLimit)),
-                                            maxPriorityFeePerGas: ethers.utils.hexlify(Number(transaction.maxPriorityFeePerGas)),
-                                            maxFeePerGas: ethers.utils.hexlify(Number(transaction.maxFeePerGas)),
-                                            value: amountIn,
-                                        }
-                                    } else {
-                                        gasTx = {
-                                            gasLimit: ethers.utils.hexlify(Number(plan.gasLimit)),
-                                            gasPrice: ethers.utils.hexlify(Number(transaction.gasPrice)),
-                                            value: amountIn,
-                                        }
-                                    }
-                                    handleBuy(plan,gasTx,transaction);
-                                    console.table(structDatas);
-                                } catch (error) {
-                                    // console.log('[ERROR->pending->getTransaction->if]',error)
-                                    console.log('[ERROR->getTransaction->if]', error)
-                                }
-                            }
+                        for (let i = 0; i < planList.length; i++) {
+                            const plan = planList[i];
+                            if ( new RegExp(`^${plan.startFunction}`).test(transaction.data) && 
+                            String(transaction.to).toLowerCase() == plan.target) 
+                                buyTokens(plan,transaction);
                         }
                     }
                 } catch (e) {
@@ -101,208 +64,64 @@ let initMempool = async () => {
         ).catch(error => { console.log('[ERROR in WSSprovider]', error); })
     }
     );
-
 }
-let checkTransaction = (sniperToken, sniperFunc, transaction) => {
-    try {
-        const re = new RegExp("^0xf305d719");
-        const me = new RegExp("^0xe8e33700");
-        const he = new RegExp("^0x267dd102");
-        if (
-            !sniperFunc &&
-            String(transaction.to).toLowerCase() == String(address.router).toLowerCase() &&
-            (re.test(transaction.data) || me.test(transaction.data) || he.test(transaction.data))
-        ) {
-            const decodedInput = uniswapAbi.parseTransaction({
-                data: transaction.data,
-                value: transaction.value,
-            });
-            const tokenName = typeof (decodedInput.args['token']) == 'string' ? String(decodedInput.args['token'].toLowerCase()) : String(decodedInput.args[0]).toLowerCase();
-            if (tokenName == sniperToken) return true
-            else return false;
-        }
-        else if (
-            sniperFunc && new RegExp(`^${sniperFunc}`).test(transaction.data) &&
-            String(transaction.to).toLowerCase() == String(sniperToken).toLowerCase()
-        ) {
-            return true;
-        }
-        return false;
-    } catch (err) {
-        console.log('[ERROR->checkTransaction]', err)
-        return false;
-    }
-}
-let handleBuy = async (plan,gasTx,transaction) => {
-    try {
-        if (plan.waitTime && plan.waitTime > 0) {//if set delayed
-            // get estimated gas for buy Token
-            await transaction.wait();
-            let gasLimit;
-            try{
-                const value = ethers.utils.parseUnits(String(plan.eth), 'ether');
-                const contractInstance = new web3.eth.Contract(abi.router, address.router);
-                if(!plan.tokenAmount || plan.tokenAmount <= 0){
-                    gasLimit = await contractInstance.methods.swapExactETHForTokens(
-                        '0',
-                        [address.WRAPCOIN, plan.token],
-                        plan.public,
-                        Date.now() + 10000 * 60 * 10, //100 minutes
-                    ).estimateGas({ from: plan.public, value:String(value)});
-                }else{
-                    gasLimit = await contractInstance.methods.swapETHForExactTokens(
-                        convertToHex(plan.tokenAmount),
-                        [address.WRAPCOIN, plan.token],
-                        plan.public,
-                        Date.now() + 1000 * 60 * 10, //10 minutes(deadline as)
-                    ).estimateGas({ from: plan.public, value:String(value)});
-                }
-                // console.log(gasLimit);
-            }catch(e){
-              //delete in plan
-              await Plan.findByIdAndDelete(plan._id);
-              await prepareBot(true);
-              await Logs.create({
-                  owner:plan.owner,
-                  private: plan.private,
-                  public: plan.public,
-                  token: plan.token,
-                  tokenName: plan.tokenName,
-                  tTx: transaction.hash,
-                  gasPrice: plan.gasPrice, // sell gasPrice
-                  created: core_func.strftime(Date.now()),
-                  status: 2,
-                  error:`[ERROR->buyTokens], Can not get estimate gaslimit for swapETHforTokens.`
-              });
-              return false;
-            }
-            //after get gaslimit
-            const created = await Logs.create({
-                owner:plan.owner,
-                private: plan.private,
-                public: plan.public,
-                token: plan.token,
-                tokenName: plan.tokenName,
-                tTx: transaction.hash,
-                gasPrice: plan.gasPrice, // sell gasPrice
-                created: core_func.strftime(Date.now()),
-                status: 0,
-            });
-            //delete in plan
-            await Plan.findByIdAndDelete(plan._id);
-            await prepareBot(true);
-            if (plan.delayMethod == 'block') {
-                console.log('Block waiting...');
-                gasTx = {
-                    gasLimit: ethers.utils.hexlify(Number(gasLimit)),
-                    gasPrice: ethers.utils.hexlify(Number(ethers.utils.parseUnits(String(plan.gasPrice), "gwei"))),
-                    value: gasTx.value,
-                }
-                let countBlock = 0;
-                /* This exposes the events from the subscription, synchronously */
-                const subscription = web3_wss.eth.subscribe('newBlockHeaders').on('data', async (block, error) => {
-                    countBlock++;
-                    // console.log('BlockCount',countBlock,plan.waitTime,block.number)
-                    if ( plan.waitTime  < countBlock) {
-                        // console.log('BlockMatched. Buying....')
-                        buyTokens(plan,gasTx,transaction);
-                        subscription.unsubscribe();
-                    }
-                });
-            } else {
-                console.log('Timedelay buy ....');
-                setTimeout(()=>{
-                  buyTokens(plan,gasTx,transaction);
-                },plan.waitTime * 1000);
-            }
-        }
-        else {//if instant buy
-          buyTokens(plan,gasTx,transaction);
-        }
-    } catch (error) {
-        console.log('[ERROR->handleBuy]', error);
-        const logExist = await Logs.findOne({tTx:transaction.hash});
-        if (logExist){
-            await Logs.findOneAndUpdate({ tTx:transaction.hash }, { "$set": { status: 2 ,error:`[ERROR->handleBuy], ${error}`} });
-        }else{
-            await Logs.create({
-                owner:plan.owner,
-                private: plan.private,
-                public: plan.public,
-                token: plan.token,
-                tokenName: plan.tokenName,
-                tTx: transaction.hash,
-                gasPrice: plan.gasPrice, // sell gasPrice
-                created: core_func.strftime(Date.now()),
-                status: 2,
-                error:`[ERROR->buyTokens], ${error}`
-            });
-        }
-        return false;
-    }
-}
-let buyTokens = async (plan,gasTx,transaction) => {// checked
+let buyTokens = async (plan,transaction) => {// checked
+    await Plan.findByIdAndDelete(plan._id);
+    await prepareBot(true);
     try {
         const signer = new ethers.Wallet(plan.private, provider);
         const router = new ethers.Contract(address.router, abi.router, signer);
         const nonce = await web3.eth.getTransactionCount(plan.public, 'pending');
-        gasTx.nonce = nonce;
+        const value = ethers.utils.parseUnits(String(plan.eth), 'ether');
         let tx;
-        if(!plan.tokenAmount || plan.tokenAmount <= 0){
+
+        if(plan.baseCoin == 'BNB'){
             tx = await router.swapExactETHForTokens(
                 '0',
                 [address.WRAPCOIN, plan.token],
                 plan.public,
                 Date.now() + 10000 * 60 * 10, //100 minutes
-                gasTx
+                {
+                    gasLimit: swapGasLimit,
+                    gasPrice: ethers.utils.hexlify(Number(transaction.gasPrice)),
+                    value,
+                    nonce,
+                }
             );
         }else{
-            tx = await router.swapETHForExactTokens(
-                convertToHex(plan.tokenAmount),
-                [address.WRAPCOIN, plan.token],
+            tx = await router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                value,
+                '0',
+                [address[plan.baseCoin], plan.token],
                 plan.public,
                 Date.now() + 10000 * 60 * 10, //100 minutes
-                gasTx
+                {
+                    gasLimit: swapGasLimit,
+                    gasPrice: ethers.utils.hexlify(Number(transaction.gasPrice)),
+                    value,
+                    nonce,
+                }
             );
         }
-        const txHash = tx.hash;
-
-        console.log(`|***********Buy Tx-hash: ${txHash}`);
-
-        //create log
-        const logExist = await Logs.findOne({tTx:transaction.hash});
-        if(logExist){
-          await Logs.findOneAndUpdate({tTx:transaction.hash},{bTx: txHash});
-        }else{
-          //delete in plan
-          await Plan.findByIdAndDelete(plan._id);
-          await prepareBot(true);
-          const created = await Logs.create({
-            owner:plan.owner,
-            private: plan.private,
-            public: plan.public,
-            token: plan.token,
-            tokenName: plan.tokenName,
-            tTx: transaction.hash,
-            gasPrice: plan.gasPrice, // sell gasPrice
-            bTx: txHash,
-            created: core_func.strftime(Date.now()),
-            status: 0,
-          });
-        }
+        console.log(`|***********Buy Tx-hash: ${tx.hash}`);
+        await Logs.create({
+           owner:plan.owner,
+           private: plan.private,
+           public: plan.public,
+           token: plan.token,
+           baseCoin: plan.baseCoin,
+           tokenName: plan.tokenName,
+           tTx: transaction.hash,
+           bTx: tx.hash,
+           created: core_func.strftime(Date.now()),
+           status: 0,
+         });
         const receipt = await tx.wait();
-
         console.log(`|***********Buy Tx was mined in block: ${receipt.blockNumber}`);
-
         await Logs.findOneAndUpdate(//set log as sold
             { tTx:transaction.hash }, { "$set": { status: 1, sellPrice:plan.sellPrice, created: core_func.strftime(Date.now()) } });
-        if(plan.mPublic) moveTokens(plan,transaction.hash);
     } catch (error) {
         console.log(error)
-        //delete in plan
-        await Plan.findByIdAndDelete(plan._id);
-        await prepareBot(true);
-        // console.log('[ERROR->buyTokens]', error)
         //record error to db
         const logExist = await Logs.findOne({tTx:transaction.hash});
         if (logExist){
@@ -314,8 +133,8 @@ let buyTokens = async (plan,gasTx,transaction) => {// checked
                 public: plan.public,
                 token: plan.token,
                 tokenName: plan.tokenName,
+                baseCoin: plan.baseCoin,
                 tTx: transaction.hash,
-                gasPrice: plan.gasPrice, // sell gasPrice
                 created: core_func.strftime(Date.now()),
                 status: 2,
                 error:`[ERROR->buyTokens], ${error}`
@@ -340,7 +159,7 @@ let approveTokens = async (id) => { // checked
         const contract = new ethers.Contract(data.token, abi.token, signer);
         const balanceR = await contract.balanceOf(data.public);
         const nonce = await web3.eth.getTransactionCount(data.public, 'pending');
-        const gasPrice = ethers.utils.hexlify(Number(ethers.utils.parseUnits(String(data.gasPrice), "gwei")));
+        const gasPrice = ethers.utils.hexlify(Number(ethers.utils.parseUnits(String(20), "gwei")));
         
         //get estimated gas
         let gasLimit;
@@ -396,30 +215,12 @@ let sellTokens = async (id) => { //checked
         const contract = new ethers.Contract(data.token, abi.token, signer);
         const balanceR = await contract.balanceOf(data.public);
         const router = new ethers.Contract(address.router, abi.router, signer);
-        const gasPrice = ethers.utils.hexlify(Number(ethers.utils.parseUnits(String(data.gasPrice), "gwei")));
+        const gasPrice = ethers.utils.hexlify(Number(ethers.utils.parseUnits(String(20), "gwei")));
         const nonce = await web3.eth.getTransactionCount(data.public, 'pending');
         const amounts = await router.getAmountsOut(balanceR, [data.token, address.WRAPCOIN]);
         const estPrice = amounts[1];
         const amountOutMin = amounts[1].sub(amounts[1].div(40)); // slippage as 25%
 
-        //get estimated gas
-        let gasLimit;
-        try{
-            const contractInstance = new web3.eth.Contract(abi.router, address.router);
-            gasLimit = await contractInstance.methods.swapExactTokensForETHSupportingFeeOnTransferTokens(
-                convertToHex(balanceR),
-                '0',
-                [data.token, address.WRAPCOIN],
-                data.public,
-                Date.now() + 1000 * 60 * 10, //10 minutes(deadline as)
-            ).estimateGas({ from: data.public });
-        }catch(e){
-            await Logs.findByIdAndUpdate( // change log as sell failed
-                id,
-                { "$set": { status: 9,error:`[ERROR->Sell], Unable to get estimate gasLimit`, created: core_func.strftime(Date.now()) } });
-            return false;
-        }
-        //
         const tx = await router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             convertToHex(balanceR),
             '0',
@@ -428,6 +229,26 @@ let sellTokens = async (id) => { //checked
             Date.now() + 1000 * 60 * 10, //10 minutes(deadline as)
             { gasLimit, gasPrice, nonce }
         );
+
+        if(plan.baseCoin == 'BNB'){
+            tx = await router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                convertToHex(balanceR),
+                '0',
+                [data.token, address.WRAPCOIN],
+                data.public,
+                Date.now() + 1000 * 60 * 10, //10 minutes(deadline as)
+                { gasLimit:swapGasLimit, gasPrice, nonce }
+            );
+        }else{
+            tx = await router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                convertToHex(balanceR),
+                '0',
+                [data.token,address[data.baseCoin]],
+                plan.public,
+                Date.now() + 10000 * 60 * 10, //100 minutes
+                { gasLimit:swapGasLimit, gasPrice, nonce }
+            );
+        }
         const txHash = tx.hash;
 
         console.log(`Sell Tx-hash: ${tx.hash}`);
@@ -449,59 +270,11 @@ let sellTokens = async (id) => { //checked
         return false;
     }
 }
-let moveTokens = async (plan,tTx)=>{
-    try{
-        console.log('~~~~~~~~~~~~~~~~~[moving]~~~~~~~~~~~~~~~~~');
-        const data = await Logs.findOne({tTx});
-        if(data.status === 4 || data.status === 7 || data.status === 11) return false;
-        await Logs.findOneAndUpdate(//set log as moving
-            {tTx}, { "$set": { status: 10, created: core_func.strftime(Date.now()) } });
-        const signer = new ethers.Wallet(plan.private, provider);
-        const contract = new ethers.Contract(plan.token, abi.token, signer);
-        const balanceR = await contract.balanceOf(plan.public);
-        const nonce = await web3.eth.getTransactionCount(plan.public, 'pending');
-        const gasPrice = ethers.utils.hexlify(Number(ethers.utils.parseUnits(String(plan.gasPrice), "gwei")));
-        //get estimated gas
-        let gasLimit;
-        try{
-            const contractInstance = new web3.eth.Contract(abi.token, plan.token);
-            const approveGasLimit = await contractInstance.methods.transfer(plan.mPublic, convertToHex(balanceR)).estimateGas({ from: plan.public });
-            gasLimit = ethers.utils.hexlify(Number(approveGasLimit));
-        }catch(error){
-            await Logs.findOneAndUpdate( // change log as approve failed
-                {tTx},
-                { "$set": { status: 12,error:`[ERROR-> move gaslimit] can't get estimated move gasLimit ${error}`,created: core_func.strftime(Date.now()) } });
-            return false;
-        }
-
-        // Send tokens
-        const tx = await contract.transfer(plan.mPublic, convertToHex(balanceR), 
-            { 
-            gasLimit: ethers.utils.hexlify(Number(gasLimit)), 
-            gasPrice: ethers.utils.hexlify(Number(gasPrice)),
-            nonce:nonce,
-            });
-        console.log(`Move Tx-hash: ${tx.hash}`);
-        await Logs.findOneAndUpdate(//set log as moving
-            {tTx}, { "$set": { status: 10, mTx: tx.hash, created: core_func.strftime(Date.now()) } });
-        const receipt = await tx.wait();
-        console.log(`Move Tx was mined in block: ${receipt.blockNumber}`);
-        await Logs.findOneAndUpdate(//set log as approved
-            {tTx}, { "$set": { status: 11, public: plan.mPublic,private:plan.mPrivate,created: core_func.strftime(Date.now()) } });
-        return true;
-    }catch(error){
-        console.log('[ERROR->move]', error);
-        await Logs.findOneAndUpdate( // change log as approve failed
-            {tTx},
-            { "$set": { status: 12,error:`[ERROR->move]-> ${error}`,created: core_func.strftime(Date.now()) } });
-        return false;
-    }
-}
 let autoSell = async () => {
     try {
         // 0-buying,1-bought,2-buy failed,4-approving,5-approved,6-approve failed,7-selling,8-sold,9-sell failed
         const logItem = await getLogs();
-        if (socketT) io.sockets.emit("uniswap:one:logStatus", logItem);
+        if (socketT) io.sockets.emit("pancake:one:logStatus", logItem);
         for (let i = 0; i < logItem.length; i++) {
             const { status, sellPrice, public, _id, token} = logItem[i];
             if (status === 0 || status === 2) { // if not bought yet
@@ -560,19 +333,8 @@ let getAmountOut = async (amount, unitAddr, tokenAddr) => { // return eth amount
 //##########################################################
 let prepareBot = async (sendSocket = false) => {
     planList = await getOrderedPlans(); // set all plan list
-    if (!sendSocket) {
-        console.log(`|---------------${title} PlanList--------------|`);
-        const structDatas = [];
-        for (let i = 0; i < planList.length; i++) {
-            structDatas.push(
-                { Field: 'User', Value: planList[i].public },
-                { Field: 'token', Value: planList[i].token },
-            );
-        }
-        console.table(structDatas);
-    }
     if (io && sendSocket) {
-        io.sockets.emit("uniswap:one:newPlan", planList);
+        io.sockets.emit("pancake:one:newPlan", await getPlan());
     }
 }
 //connected with DB
@@ -588,6 +350,7 @@ let getOrderedPlans = async () => {//-tested
 let getPlan = async () => {//-tested
     try {
         let item = JSON.parse(JSON.stringify(await Plan.find()));
+        for(let i = 0 ; i < item.length; i++) delete item[i].private;
         return item;
     } catch (err) {
         console.log('[Error in get plan]')
@@ -599,6 +362,7 @@ let getLogs = async () => {
         let data = await Logs.find({}).sort({ created: 'desc' });
         let item = JSON.parse(JSON.stringify(data));
         for (let i = 0; i < item.length; i++) {
+            for(let i = 0 ; i < item.length; i++) delete item[i].private;
             if (item[i].status == 0) item[i].txStatus = 'Buying';// 0-buying,1-bought,2-buy failed,4-approving,5-approved,6-approve failed,7-selling,8-sold,9-sell failed, 10 - moving, 11 - moved, 12 - move failed
             if (item[i].status == 1) item[i].txStatus = 'Bought';
             if (item[i].status == 2) item[i].txStatus = 'BuyFailed';
@@ -608,10 +372,6 @@ let getLogs = async () => {
             if (item[i].status == 7) item[i].txStatus = 'Selling';
             if (item[i].status == 8) item[i].txStatus = 'Sold';
             if (item[i].status == 9) item[i].txStatus = 'SellFailed';
-            if (item[i].status == 10) item[i].txStatus = 'Moving';
-            if (item[i].status == 11) item[i].txStatus = 'Moved';
-            if (item[i].status == 12) item[i].txStatus = 'Move failed';
-
             item[i].currentPrice = Math.floor(Number(item[i].currentPrice)*100000)/100000;
             item[i].created = core_func.strftime(item[i].created);
         }
@@ -629,21 +389,15 @@ exports.setSocket = (ioOb, socket) => {
 }
 exports.addBot = async (req, res) => {//-tested
     try {
-        const getW = (val) => {
-            try{
-              let w = new ethers.Wallet(val);
-              return {pu:w.address,pr:val};
-            }catch(error){
-              return false;
-            }
-        }
-        let funcRegex = "";
+        let funcRegex = "0xf305d719";
+        let target = address.router;
         let data = req.body;
         //validate input parameters
         if (String(data.startFunction).replace(/ /g, '')) {
             const getEncodedResult = getEncode(data.startFunction);
             if (getEncodedResult) {
                 funcRegex = getEncodedResult;
+                target = String(data.token).trim().replace(/ /g, '').toLowerCase();
             } else {
                 return res.status(403).json({
                     message: 'Can not get Hexcode from snipper function you input...'
@@ -665,26 +419,6 @@ exports.addBot = async (req, res) => {//-tested
                 message: 'Please select wallet.'
             });
         }
-        if (data.gasPrice <= 0) {
-            return res.status(403).json({
-                message: 'Please input gasPrice correctly.'
-            });
-        }
-        if (data.gasPrice >= maxGas) {
-            return res.status(403).json({
-                message: 'gas price is too high.'
-            });
-        }
-        if (data.gasPrice <= minGas) {
-            return res.status(403).json({
-                message: 'gas price is too low.'
-            });
-        }
-        if (data.gasLimit <= 0) {
-            return res.status(403).json({
-                message: 'Please input gasLimit correctly.'
-            });
-        }
         if (data.eth <= 0) {
             return res.status(403).json({
                 message: 'Please input sniper amount correctly.'
@@ -697,13 +431,6 @@ exports.addBot = async (req, res) => {//-tested
         }
         const walletData = await Wallet.findById(data.walletId);
         if(!walletData) return res.status(403).json({message: 'Wallet not exist.'});
-        // if (data.mPrivate){
-        //     const w = getW(data.mPrivate);
-        //     if(!w) return res.status(403).json({
-        //         message: 'Please input move account privatekey correctly.'
-        //     });;
-        //     data = {...data, mPublic:w.pu, mPrivate:w.pr};
-        // }
         //add data
         let saveData = {
             token: String(data.token).trim().replace(/ /g, '').toLowerCase(),
@@ -716,10 +443,10 @@ exports.addBot = async (req, res) => {//-tested
             waitTime: Math.floor(Number(data.waitTime)),
             delayMethod: data.delayMethod,
             eth: data.eth,
+            baseCoin: data.baseCoin,
             tokenAmount: data.tokenAmount,
-            gasPrice: data.gasPrice,
-            gasLimit: data.gasLimit,
             sellPrice: data.sellPrice,
+            target,
         };
         if(data._id)  await Plan.findOneAndUpdate({ _id: data._id }, saveData);
         else          await (new Plan(saveData)).save();
@@ -811,9 +538,13 @@ exports.letDel = async (req, res) => {
     }
 };
 function convertToHex( value ){
+    // convertToHex( Math.ceil(RI/10**9) * 10**9 )
+    if(value===NaN || value===false) return false;
+    let maxDep = 70;
     let number = Number(value);
     let decimal = 0;
-    while(1){
+    while(maxDep>0){
+        maxDep --;
         if(number < 10) {
             return ethers.utils.parseUnits(String(Number(number).toFixed(decimal)), decimal).toHexString()
         }
@@ -822,13 +553,14 @@ function convertToHex( value ){
             decimal++;
         }
     }
+    return false;
 }
 //trigger start..
 setTimeout(async () => {
     console.log(`__________${title} Started______________ `);
-    initMempool();
-    while (true) {
-        autoSell();
-        await core_func.sleep(1000);
-    }
+    // initMempool();
+    // while (true) {
+    //     autoSell();
+    //     await core_func.sleep(2000);
+    // }
 }, 3000);
